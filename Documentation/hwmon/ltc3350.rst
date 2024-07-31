@@ -1,0 +1,43 @@
+Kernel driver ltc3350
+=====================
+
+Supported chips:
+
+  * Linear Technology LTC3350
+
+    Prefix: 'ltc3350'
+
+    Addresses scanned: -
+
+    Datasheet:
+
+  https://www.analog.com/en/products/ltc3350.html?doc=LTC3350.pdf
+
+Author: Francesca Pinna
+
+Description
+-----------
+
+The LTC3350 is a backup power controller that can charge
+and monitor a series stack of one to four supercapacitors.
+
+The LTC3350 monitors system voltages, currents, stack capacitance and stack ESR which can all be read over the I2C/SMBus.
+The device can trigger a SMBus alert through the SMBALERT pin.
+
+Usage Notes
+-----------
+
+This driver does not probe for LTC3350 devices, since there is no register which can be safely used to identify the chip.
+You can specify the device in the device tree, or you can instatiate the device explicitly.
+
+Example: the following will load the driver LTC3350 at address 0x09 on I2C bus #3::
+
+  $ modprobe ltc3350
+  $ echo ltc3350 0x09 > /sys/bus/i2c/devices/i2c-2/new_device
+
+This is assuming that i2c numbering starts from zero.
+
+Sysfs entries
+-------------
+
+TODO describe the system and the sysfs entries.
