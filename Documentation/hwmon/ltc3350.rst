@@ -52,50 +52,47 @@ Sysfs entries
 
 The sysfs entries directly correspond to the LTC3350 registers
 
-============================ ======
-===================================
-Name    Perm  Description
-============================ ======
-===================================
-clr_alarms		RW	Clear alarms register
-msk_alarms		RW	Enable/mask alarms register
-msk_mon_status		RW	Enable/mask monitor status alerts
-cap_esr_per		RW	Capacitance/ESR measurement period
-vcapfb_dac		RW	 VCAP voltage reference DAC setting
-vshunt		RW	 Capacitor shunt voltage setting
-cap_uv_lvl		RW	Capacitor Undervoltage Level
-cap_ov_lvl		RW	Capacitor Overvoltage Level
-gpi_uv_lvl		RW	General Purpose Input Undervoltage Level
-gpi_ov_lvl		RW	General Purpose Input Overvoltage Level
-vin_uv_lvl		RW	General Purpose Input Overvoltage Level
-vin_ov_lvl		RW	General Purpose Input Overvoltage Level
-vcap_uv_lvl		RW	VCAP Undervoltage Level
-vcap_ov_lvl		RW	VCAP Overvoltage Level
-vout_uv_lvl		RW	VOUT Undervoltage Level
-vout_ov_lvl		RW	VOUT Overvoltage Level
-iin_oc_lvl		RW	Input Overcurrent Level
-ichg_uc_lvl		RW	Charge Undercurrent Level
-dtemp_cold_lvl		RW	Charge Undercurrent Level
-dtemp_hot_lvl		RW	Die Temperature Hot Level
-esr_hi_lvl		RW	ESR High Level
-cap_lo_lvl		RW	Capacitance Low Level
-ctl_reg		RW	Control register 
-num_caps		RO	Number of capacitors configured 
-chrg_status		RO	Charger status register 
-mon_status		RO	Monitor status register
-alarm_reg		RO	Active alarms register
-meas_cap		RO	Measured capacitance value 
-meas_esr		RO	Measured ESR value 
-meas_vcap1		RO	Measured capacitor one voltage
-meas_vcap2		RO	Measured capacitor two voltage
-meas_vcap3		RO	Measured capacitor three voltage
-meas_vcap4		RO	Measured capacitor four voltage
-meas_gpi		RO	Measured GPI pin voltage
-meas_vin		RO	Measured VIN voltage
-meas_vcap		RO	Measured VCAP voltage
-meas_vout		RO	Measured VOUT voltage
-meas_iin		RO	Measured IIN current
-meas_ichg		RO	Measured ICHG current
-meas_dtemp		RO	Measured die temperature
-===================================== =======
-=============================================
+================  ======  ================================================
+Name              Perm    Description
+================  ======  ================================================
+clr_alarms        RW	  Clear alarms register
+msk_alarms        RW	  Enable/mask alarms register
+msk_mon_status    RW	  Enable/mask monitor status alerts
+cap_esr_per       RW	  Capacitance/ESR measurement period
+vcapfb_dac        RW      VCAP voltage reference DAC setting
+vshunt            RW      Capacitor shunt voltage setting
+cap_uv_lvl        RW      Capacitor Undervoltage Level
+cap_ov_lvl        RW      Capacitor Overvoltage Level
+gpi_uv_lvl        RW      General Purpose Input Undervoltage Level
+gpi_ov_lvl        RW      General Purpose Input Overvoltage Level
+vin_uv_lvl        RW      General Purpose Input Overvoltage Level
+vin_ov_lvl        RW      General Purpose Input Overvoltage Level
+vcap_uv_lvl       RW      VCAP Undervoltage Level
+vcap_ov_lvl       RW      VCAP Overvoltage Level
+vout_uv_lvl       RW      VOUT Undervoltage Level
+vout_ov_lvl       RW      VOUT Overvoltage Level
+iin_oc_lvl        RW      Input Overcurrent Level
+ichg_uc_lvl       RW      Charge Undercurrent Level
+dtemp_cold_lvl    RW      Charge Undercurrent Level
+dtemp_hot_lvl     RW      Die Temperature Hot Level
+esr_hi_lvl        RW      ESR High Level
+cap_lo_lvl        RW      Capacitance Low Level
+ctl_reg           RW      Control register 
+num_caps          RO      Number of capacitors configured 
+chrg_status       RO      Charger status register 
+mon_status        RO      Monitor status register
+alarm_reg         RO      Active alarms register
+meas_cap          RO      Measured capacitance value 
+meas_esr          RO      Measured ESR value 
+meas_vcap1        RO      Measured capacitor one voltage
+meas_vcap2        RO      Measured capacitor two voltage
+meas_vcap3        RO      Measured capacitor three voltage
+meas_vcap4        RO      Measured capacitor four voltage
+meas_gpi          RO      Measured GPI pin voltage
+meas_vin          RO      Measured VIN voltage
+meas_vcap         RO      Measured VCAP voltage
+meas_vout         RO      Measured VOUT voltage
+meas_iin          RO      Measured IIN current
+meas_ichg         RO      Measured ICHG current
+meas_dtemp        RO      Measured die temperature
+================  ======  ================================================
