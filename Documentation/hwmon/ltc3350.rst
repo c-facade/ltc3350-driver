@@ -18,11 +18,21 @@ Author: Francesca Pinna
 Description
 -----------
 
-The LTC3350 is a backup power controller that can charge
-and monitor a series stack of one to four supercapacitors.
+This driver implements support for the Analog Devices LTC3350 High Current Supercapacitor Backup Controller and System Monitor.
 
-The LTC3350 monitors system voltages, currents, stack capacitance and stack ESR which can all be read over the I2C/SMBus.
-The device can trigger a SMBus alert through the SMBALERT pin.
+The LTC3350 monitors system voltages, currents, stack capacitance and stack ESR.
+It has an integreted analog-to-digital converter(ADC), and its results are stored in registers accessible via the I2C/SMBus port.
+The result of the ADC conversion is stores in a 16-bit register as a signed, two's complement number. The lower two bits of the number are sub-bits.
+
+The ADC Least Significant Bit units are not reported in standard units of measurement. This driver does not convert values, both to expose more precise measurements, and because some values depend on the specific application's resistance.
+The sysfs entries are expressed as read from the registers, except for the conversion to signed integers.
+
+It is possible to set alarms, which are all disabled by default. The limit checking function will periodically check each measured value against the I2C programmable limits, so it is not necessary to poll the I2C for measurement data.
+If a measured parameter goes outside of the programmed level of an enabled limit, the associated bit in the alarm_reg register is set high and the SMBALERT pin is pulled low. This driver makes use of the I2C_SMBUS module to handle SMBus alerts.
+Once the interrupt is declared in the device tree with the name "smbus_alert", the function in `i2c/i2c-core-smbus.c` will register a new ARA device. The I2C_SMBUS module defines an interrupt handler which schedules the execution of the `alert()` function of this driver.
+
+Once the LTC3350 has responded to an SMBus ARA the SMBALERT pin is released. So, the alert() function will not be called until another limit is exceeded. To reset a limit, it must be cleared by writing a one to the respective bit in the clr_alarms register.
+
 
 Usage Notes
 -----------
@@ -40,4 +50,52 @@ This is assuming that i2c numbering starts from zero.
 Sysfs entries
 -------------
 
-TODO describe the system and the sysfs entries.
+The sysfs entries directly correspond to the LTC3350 registers
+
+============================ ======
+===================================
+Name    Perm  Description
+============================ ======
+===================================
+clr_alarms		RW	Clear alarms register
+msk_alarms		RW	Enable/mask alarms register
+msk_mon_status		RW	Enable/mask monitor status alerts
+cap_esr_per		RW	Capacitance/ESR measurement period
+vcapfb_dac		RW	 VCAP voltage reference DAC setting
+vshunt		RW	 Capacitor shunt voltage setting
+cap_uv_lvl		RW	Capacitor Undervoltage Level
+cap_ov_lvl		RW	Capacitor Overvoltage Level
+gpi_uv_lvl		RW	General Purpose Input Undervoltage Level
+gpi_ov_lvl		RW	General Purpose Input Overvoltage Level
+vin_uv_lvl		RW	General Purpose Input Overvoltage Level
+vin_ov_lvl		RW	General Purpose Input Overvoltage Level
+vcap_uv_lvl		RW	VCAP Undervoltage Level
+vcap_ov_lvl		RW	VCAP Overvoltage Level
+vout_uv_lvl		RW	VOUT Undervoltage Level
+vout_ov_lvl		RW	VOUT Overvoltage Level
+iin_oc_lvl		RW	Input Overcurrent Level
+ichg_uc_lvl		RW	Charge Undercurrent Level
+dtemp_cold_lvl		RW	Charge Undercurrent Level
+dtemp_hot_lvl		RW	Die Temperature Hot Level
+esr_hi_lvl		RW	ESR High Level
+cap_lo_lvl		RW	Capacitance Low Level
+ctl_reg		RW	Control register 
+num_caps		RO	Number of capacitors configured 
+chrg_status		RO	Charger status register 
+mon_status		RO	Monitor status register
+alarm_reg		RO	Active alarms register
+meas_cap		RO	Measured capacitance value 
+meas_esr		RO	Measured ESR value 
+meas_vcap1		RO	Measured capacitor one voltage
+meas_vcap2		RO	Measured capacitor two voltage
+meas_vcap3		RO	Measured capacitor three voltage
+meas_vcap4		RO	Measured capacitor four voltage
+meas_gpi		RO	Measured GPI pin voltage
+meas_vin		RO	Measured VIN voltage
+meas_vcap		RO	Measured VCAP voltage
+meas_vout		RO	Measured VOUT voltage
+meas_iin		RO	Measured IIN current
+meas_ichg		RO	Measured ICHG current
+meas_dtemp		RO	Measured die temperature
+===================================== =======
+=============================================
