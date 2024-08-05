@@ -4,9 +4,6 @@
  * Datasheet: https://www.analog.com/en/products/ltc3350.html?doc=LTC3350.pdf
  */
 
-// TODO cambiare i nomi degli attributi in modo da
-// renderli compatibili con lo standard.
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -92,26 +89,6 @@
 #define MON_POWER_FAILED BIT(8)
 #define MON_POWER_RETURNED BIT(9)
 
-// QUESTE INFORMAZIONI verranno rimosse quando tolgo le stampe di debug.
-// ohms
-#define RT 86600
-#define RTST 121
-// microohms
-#define RSNSC 5
-
-// TODO dove possibile, MACRO -> inline function
-
-#define info(reg_name,reg_description) \
-	case reg_name: \
-		ret = ltc3350_get_value(client, reg_name, &value); \
-		if (unlikely(ret < 0)) \
-			dev_err(dev, "Error reading value of" #reg_name); \
-		else \
-			dev_info(dev, #reg_description ": %d", value); \
-		break;
-
-//static inline void log_alarm(int alarm_value, int alarm_name, char alarm_desc, int reg1, int reg2){
-
 #define log_alarm(alarm_name, reg1, reg2) \
 	if (alarm_value & alarm_name) { \
 		dev_info(dev, #alarm_name "\n"); \
@@ -119,7 +96,7 @@
 
 #define log_monitor(alert_name, description) \
 	if (monitor_value & alert_name) { \
-		dev_info(dev, #alert_name "\n" #description); \
+		dev_info(dev, #alert_name ": " #description); \
 	}
 
 // declared for conveniency
@@ -154,89 +131,6 @@ struct ltc3350_data {
 	int initial_meas; // cap_esr measurements to be done on first power up
 	int cap_esr_per;
 };
-
-// UTILITY FUNCTIONS FOR CONVERSION -------------------------------------------------------
-
-int truncate(unsigned long number){
-	int integer = (int) number;
-	if (integer % 10 == 9) {
-		integer++;
-	}
-	return integer;
-}
-
-/*
- * convert from the register's measurement unit to degrees celsius
- *  degrees = 0.028 * meas_dtemp - 251.4
- * using fixed point arithmetic, multiplying all constants by 1000
-*/
-int LSB_to_celsius(int meas_dtemp)
-{
-	long scaled_result = 28 * meas_dtemp - 251400;
-	// this is to adjust for rounding errors
-	// if the last decimal digit is 9 then we round up
-	if (((scaled_result + 100) / 1000) != (scaled_result / 1000))
-		scaled_result += 100;
-	return truncate((28 * meas_dtemp - 251400) / 1000);
-}
-
-/*
- * convert from degrees celsius to register's measurement unit
- * using fixed point arithmetic
-*/
-int celsius_to_LSB(int degrees)
-{
-	return truncate(((long) degrees*1000 + 251400) / 28);
-}
-
-/*
- * convert from millivolts to LSB
- * 1) LSB = 183.5 microvolts (1835)
- * 2) LSB = 2.21 millivolts = 2210 microvolts (22100)
- * 3) LSB = 1.476 millivolts = 1476 microvolts (14760)
-*/
-unsigned long millivolts_to_LSB(unsigned long voltage_millivolts, int conversion_factor)
-{
-	// the conversion factor is multiplied by one hundred in order to avoid floating point division
-	int scale_factor = 10;
-	long voltage_microvolts = voltage_millivolts * 1000;
-	return (voltage_microvolts * scale_factor / conversion_factor);
-}
-
-/*
- * convert from LSB to millivolts
-*/
-int LSB_to_millivolts(int units, int conversion_factor)
-{
-	int scale_factor = 10;
-	// example: conversion_factor = 1835;
-	unsigned long voltage_microvolts = units * conversion_factor;
-	return truncate(voltage_microvolts / (1000 * scale_factor));
-}
-
-//Capacitance stack value in LSB
-unsigned long farads_to_LSB(unsigned long cap)
-{
-	return 1000000 * cap * RTST / RT / 336;
-}
-
-//Capacitance stack value in farads
-int LSB_to_farads(int units)
-{
-	long result = (long) units * 336 * RT / RTST / 1000000;
-	return truncate(result);
-}
-
-unsigned long milliohms_to_LSB(unsigned long esr)
-{
-	return esr * 64 / RSNSC;
-}
-
-int LSB_to_milliohms(int units)
-{
-	long result = (long) units * RSNSC / 64;
-	return truncate(result);
-}
 
 
 // READ/WRITE on BUS -----------------------------------------------
@@ -372,14 +266,12 @@ static void ltc3350_alert(struct i2c_client *client, enum i2c_alert_protocol, un
 	struct ltc3350_data *client_data = dev_get_drvdata(&client->dev);
 	hwmon_dev = client_data->hwmon_dev;
 
-	dev_info(&client->dev, "Alert from device at address 0x%02x\n", client->addr);
+	dev_dbg(&client->dev, "Alert from device at address 0x%02x\n", client->addr);
 	ret1 = ltc3350_get_value(client, ALARM_REG, &alarm_value);
 	ret2 = ltc3350_get_value(client, MON_STATUS, &monitor_value);
 
 	if (unlikely(ret1<0 || ret2 < 0))
 		dev_err(&client->dev, "Error reading value of ALARM_REG or MON_STATUS\n");
-
-	dev_dbg(&client->dev, "Alarm register has value 0x%04x\nMonitor status register has value 0x%04x\nData: %d\n", alarm_value, monitor_value, data);
 
 	ltc3350_show_alarms(alarm_value, monitor_value, client);
 
@@ -393,57 +285,6 @@ static void ltc3350_alert(struct i2c_client *client, enum i2c_alert_protocol, un
 }
 
 
-/**
- * This shows a short description of the register,
- * and prints its value on dev_info
-
-static void ltc3350_reg_info(struct i2c_client *client, u8 reg){
-	struct device *dev = &client->dev;
-	int ret, value;
-	switch(reg){
-		info(CLR_ALARMS, Clear alarms register)
-		info(MSK_ALARMS, Enable/mask alarms register)
-		info(MSK_MON_STATUS, Enable/mask monitor status alerts)
-		info(CAP_ESR_PER, Capacitance/ESR measurement period)
-		info(VCAPFB_DAC,  VCAP voltage reference DAC setting)
-		info(VSHUNT,  Capacitor shunt voltage setting)
-		info(CAP_UV_LVL, Capacitor Undervoltage Level)
-		info(CAP_OV_LVL, Capacitor Overvoltage Level)
-		info(GPI_UV_LVL, General Purpose Input Undervoltage Level)
-		info(GPI_OV_LVL, General Purpose Input Overvoltage Level)
-		info(VIN_UV_LVL, General Purpose Input Overvoltage Level)
-		info(VIN_OV_LVL, General Purpose Input Overvoltage Level)
-		info(VCAP_UV_LVL, VCAP Undervoltage Level)
-		info(VCAP_OV_LVL, VCAP Overvoltage Level)
-		info(VOUT_UV_LVL, VOUT Undervoltage Level)
-		info(VOUT_OV_LVL, VOUT Overvoltage Level)
-		info(IIN_OC_LVL, Input Overcurrent Level)
-		info(ICHG_UC_LVL, Charge Undercurrent Level)
-		info(DTEMP_COLD_LVL, Charge Undercurrent Level)
-		info(DTEMP_HOT_LVL, Die Temperature Hot Level)
-		info(ESR_HI_LVL, ESR High Level)
-		info(CAP_LO_LVL, Capacitance Low Level)
-		info(CTL_REG, Control register )
-		info(NUM_CAPS, Number of capacitors configured )
-		info(CHRG_STATUS, Charger status register )
-		info(MON_STATUS, Monitor status register)
-		info(ALARM_REG, Active alarms register)
-		info(MEAS_CAP, Measured capacitance value )
-		info(MEAS_ESR, Measured ESR value )
-		info(MEAS_VCAP1, Measured capacitor one voltage)
-		info(MEAS_VCAP2, Measured capacitor two voltage)
-		info(MEAS_VCAP3, Measured capacitor three voltage)
-		info(MEAS_VCAP4, Measured capacitor four voltage)
-		info(MEAS_GPI, Measured GPI pin voltage)
-		info(MEAS_VIN, Measured VIN voltage)
-		info(MEAS_VCAP, Measured VCAP voltage)
-		info(MEAS_VOUT, Measured VOUT voltage)
-		info(MEAS_IIN, Measured IIN current)
-		info(MEAS_ICHG, Measured ICHG current)
-		info(MEAS_DTEMP, Measured die temperature)
-	}
-}
-*/
 
 /*
  * On receiving an alert, this function logs which alarm has
@@ -602,69 +443,66 @@ static int ltc3350_configure(struct i2c_client *client){
 	struct ltc3350_data *data;
 	int value;
 	int ret;
-	int temp;
-
-	dev_info(&client->dev, "Reading from device node %s, child of %s.\n", np->name, np->parent->name);
+	
 	data = dev_get_drvdata(&client->dev);
 	if (!data)
 		return -EINVAL;
 
 	ret = of_property_read_u32(np, "capacitor-overvoltage-level", &value);
 	if (ret == 0) {
-		dev_info(&client->dev, "DTS: capacitor-overvoltage-level is %d mV: %d\n", LSB_to_millivolts(value, 1835), value);
+		dev_dbg(&client->dev, "DTS: capacitor-overvoltage-level is %d\n", value);
 		ret = set_alarm_and_level(client, CAP_OV_LVL, value, ALARM_CAP_OV);
 		if (ret)
 			return ret;
 	} else {
-		dev_info(&client->dev, "No capacitor-overvoltage-level code: %d\n", ret);
+		dev_dbg(&client->dev, "No capacitor-overvoltage-level code: %d\n", ret);
 	}
 
 	ret = of_property_read_u32(np, "maximum-temperature", &value);
 	if (ret == 0) {
-		temp = LSB_to_celsius(value);
-		dev_info(&client->dev, "DTS: maximum-temperature is %d C: %d\n", value, temp);
+		dev_dbg(&client->dev, "DTS: maximum-temperature is %d\n", value);
 		ret = set_alarm_and_level(client, DTEMP_HOT_LVL, value, ALARM_DTEMP_HOT);
 		if (ret)
 			return ret;
 	} else{
-		dev_info(&client->dev, "No maximum temperature %d\n", ret);
+		dev_dbg(&client->dev, "No maximum temperature %d\n", ret);
 	}
 
 	ret = of_property_read_u32(np, "esr-high-level", &value);
 	if (ret == 0) {
-		dev_info(&client->dev, "DTS: esr-high-level is %d mR: %d\n", LSB_to_milliohms(value), value);
+		dev_dbg(&client->dev, "DTS: esr-high-level is %d\n", value);
 		ret = set_alarm_and_level(client, ESR_HI_LVL, value, ALARM_ESR_HI);
 		if (ret)
 			return ret;
 	} else {
-		dev_info(&client->dev, "No esr high level %d\n", ret);
+		dev_dbg(&client->dev, "No esr high level %d\n", ret);
 	}
 
 	ret = of_property_read_u32(np, "capacitance-low-level", &value);
 	if (ret == 0) {
-		dev_info(&client->dev, "DTS: capacitance-low-level is %d F : %d\n", LSB_to_farads(value), value);
+		dev_dbg(&client->dev, "DTS: capacitance-low-level is %d\n", value);
 		ret = set_alarm_and_level(client, CAP_LO_LVL, value, ALARM_CAP_LO);
 		if (ret)
 			return ret;
 	} else {
-		dev_info(&client->dev, "No capacitance-low-level %d\n", ret);
+		dev_dbg(&client->dev, "No capacitance-low-level %d\n", ret);
 	}
 
 	ret = of_property_read_u32(np, "cap-esr-measurement-period", &value);
 	if (ret == 0) {
-		dev_info(&client->dev, "DTS: cap-esr-measurement-period is %d\n", value);
+		dev_dbg(&client->dev, "DTS: cap-esr-measurement-period is %d\n", value);
 		ret = ltc3350_write_num(client, CAP_ESR_PER, value);
 		if (ret) {
 			return ret;
 		}
 	}
 	else{
-		dev_info(&client->dev, "No cap-esr-measurement-period %d\n", ret);
+		dev_dbg(&client->dev, "No cap-esr-measurement-period %d\n", ret);
 	}
 
 	ret = of_property_read_u32(np, "cap-esr-initial-measurements", &value);
 	if (ret == 0) {
-		dev_info(&client->dev, "DTS: cap-esr-initial-measurements is %d\n", value);
+		dev_dbg(&client->dev, "DTS: cap-esr-initial-measurements is %d\n", value);
 		data->initial_meas = value;
 		if (value) {
 			ret = set_monitor_alert(client, MON_ESR_DONE, 1);
@@ -676,7 +514,7 @@ static int ltc3350_configure(struct i2c_client *client){
 		}
 	}
 	else {
-		dev_info(&client->dev, "No cap-esr-initial-measurements %d. Defaulting to ten.\n", ret);
+		dev_dbg(&client->dev, "No cap-esr-initial-measurements %d. Defaulting to ten.\n", ret);
 		data->initial_meas = 10;
 		ret = start_capesr_test(client);
 		if (ret)
@@ -735,6 +573,7 @@ static SENSOR_DEVICE_ATTR_RO(meas_vout, ltc3350_value, MEAS_VOUT);
 static SENSOR_DEVICE_ATTR_RO(meas_iin, ltc3350_value, MEAS_IIN);
 static SENSOR_DEVICE_ATTR_RO(meas_ichg, ltc3350_value, MEAS_ICHG);
 static SENSOR_DEVICE_ATTR_RO(meas_dtemp, ltc3350_value, MEAS_DTEMP);
+
 
 // definisco il gruppo di attributi
 
