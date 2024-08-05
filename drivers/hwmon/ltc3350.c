@@ -94,6 +94,10 @@
 		dev_info(dev, #alarm_name "\n"); \
 	}
 
+// declared for conveniency
+static void ltc3350_show_alarms(unsigned int alarm_value, unsigned int monitor_value, struct i2c_client *client);
+static void ltc3350_handle_initial_measurements(struct i2c_client *client, int monitor_value);
+
 /**
  * struct ltc3350_hwmon_data
  * @client - reference to i2c client device
@@ -234,76 +238,6 @@ static ssize_t ltc3350_value_store(struct device *dev,
 	return count;
 }
 
-// ALERTS HANDLING
-
-
-/*
- * If initial measurements are active and a measurement has just completed
- * warns the user about potential inaccurate values
- * Eventually disables initial measurements.
-*/
-static void ltc3350_handle_initial_measurements(struct i2c_client *client, int monitor_value)
-{
-	struct device *dev = &client->dev;
-	struct ltc3350_data *devdata = dev_get_drvdata(dev);
-	if ((monitor_value & MON_ESR_DONE) && devdata->initial_meas) {
-		if (devdata->cap_esr_num < devdata->initial_meas) {
-			dev_warn(dev, "Initial capacitance and ESR measurements may be inaccurate. Measurement number %d.", devdata->cap_esr_num);
-		}
-		if (devdata->cap_esr_num == devdata->initial_meas) {
-			dev_warn(dev, "First %d capacitance and ESR tests done. Measurements will resume at rate specified in the device tree. MON_ESR_DONE alert will be turned off.", devdata->cap_esr_num);
-			set_monitor_alert(client, MON_ESR_DONE, 0);
-			ltc3350_write_num(client, CAP_ESR_PER, devdata->cap_esr_per);
-		}
-		devdata->cap_esr_num++;
-	}
-}
-
-/*
- * On receiving an alert, this function logs which alarm has
- * been received.
-*/
-static void ltc3350_show_alarms(unsigned int alarm_value, unsigned int monitor_value, struct i2c_client *client){
-	struct device *dev = &client->dev;
-	ltc3350_handle_initial_measurements(client, monitor_value);
-	
-	if(monitor_value & MON_CAPSR_ACTIVE)
-		dev_info(dev, "Capacitance/ESR measurement is in progress");
-	if(monitor_value & MON_CAPESR_SCHEDULED)
-		dev_info(dev, "Waiting programmed time to begin a capacitance/ESR measurement");
-	if(monitor_value & MON_CAPESR_PENDING)
-		dev_info(dev, "Waiting for satisfactory conditions to begin a capacitance/ESR measurement");
-	if(monitor_value & MON_CAP_DONE)
-		dev_info(dev, "Capacitance measurement has completed");
-	if(monitor_value & MON_ESR_DONE)
-		dev_info(dev, "ESR Measurement has completed");
-	if(monitor_value & MON_CAP_FAILED)
-		dev_info(dev, "The last attempted capacitance measurement was unable to complete");
-	if(monitor_value & MON_ESR_FAILED)
-		dev_info(dev, "The last attempted ESR measurement was unable to complete");
-	if(monitor_value & MON_POWER_FAILED)
-		dev_info(dev, "The device is no longer charging");
-	if(monitor_value & MON_POWER_RETURNED)
-		dev_info(dev, "The device is charging");
-
-	log_alarm(ALARM_CAP_UV, MEAS_CAP, CAP_UV_LVL)
-	log_alarm(ALARM_CAP_OV, MEAS_CAP, CAP_OV_LVL)
-	log_alarm(ALARM_GPI_UV, MEAS_GPI, GPI_UV_LVL)
-	log_alarm(ALARM_GPI_OV, MEAS_GPI, GPI_OV_LVL)
-	log_alarm(ALARM_VIN_UV, MEAS_VIN, VIN_UV_LVL)
-	log_alarm(ALARM_VIN_OV, MEAS_VIN, VIN_OV_LVL)
-	log_alarm(ALARM_VCAP_UV, MEAS_VCAP, VCAP_UV_LVL)
-	log_alarm(ALARM_VCAP_OV, MEAS_VCAP, VCAP_OV_LVL)
-	log_alarm(ALARM_VOUT_UV, MEAS_VOUT, VOUT_UV_LVL)
-	log_alarm(ALARM_VOUT_OV, MEAS_VOUT, VOUT_OV_LVL)
-	log_alarm(ALARM_IIN_OC, MEAS_IIN, IIN_OC_LVL)
-	log_alarm(ALARM_ICHG_UC, MEAS_ICHG, ICHG_UC_LVL)
-	log_alarm(ALARM_DTEMP_COLD, MEAS_DTEMP, DTEMP_COLD_LVL)
-	log_alarm(ALARM_DTEMP_HOT, MEAS_DTEMP, DTEMP_HOT_LVL)
-	log_alarm(ALARM_ESR_HI, MEAS_ESR, ESR_HI_LVL)
-	log_alarm(ALARM_CAP_LO, MEAS_CAP, CAP_LO_LVL)
-}
-
 // SMBUS ALERT ----------------------------------------------------------
 
 /**
@@ -343,6 +277,54 @@ static void ltc3350_alert(struct i2c_client *client, enum i2c_alert_protocol, un
 		sysfs_notify(kobj, NULL, "alarm_reg");
 		sysfs_notify(kobj, NULL, "mon_status");
 	}
+}
+
+
+
+/*
+ * On receiving an alert, this function logs which alarm has
+ * been received.
+*/
+static void ltc3350_show_alarms(unsigned int alarm_value, unsigned int monitor_value, struct i2c_client *client){
+	struct device *dev = &client->dev;
+	ltc3350_handle_initial_measurements(client, monitor_value);
+
+	
+	if(monitor_value & MON_CAPSR_ACTIVE)
+		dev_info(dev, "Capacitance/ESR measurement is in progress");
+	if(monitor_value & MON_CAPESR_SCHEDULED)
+		dev_info(dev, "Waiting programmed time to begin a capacitance/ESR measurement");
+	if(monitor_value & MON_CAPESR_PENDING)
+		dev_info(dev, "Waiting for satisfactory conditions to begin a capacitance/ESR measurement");
+	if(monitor_value & MON_CAP_DONE)
+		dev_info(dev, "Capacitance measurement has completed");
+	if(monitor_value & MON_ESR_DONE)
+		dev_info(dev, "ESR Measurement has completed");
+	if(monitor_value & MON_CAP_FAILED)
+		dev_info(dev, "The last attempted capacitance measurement was unable to complete");
+	if(monitor_value & MON_ESR_FAILED)
+		dev_info(dev, "The last attempted ESR measurement was unable to complete");
+	if(monitor_value & MON_POWER_FAILED)
+		dev_info(dev, "The device is no longer charging");
+	if(monitor_value & MON_POWER_RETURNED)
+		dev_info(dev, "The device is charging");
+
+	log_alarm(ALARM_CAP_UV, MEAS_CAP, CAP_UV_LVL)
+	log_alarm(ALARM_CAP_OV, MEAS_CAP, CAP_OV_LVL)
+	log_alarm(ALARM_GPI_UV, MEAS_GPI, GPI_UV_LVL)
+	log_alarm(ALARM_GPI_OV, MEAS_GPI, GPI_OV_LVL)
+	log_alarm(ALARM_VIN_UV, MEAS_VIN, VIN_UV_LVL)
+	log_alarm(ALARM_VIN_OV, MEAS_VIN, VIN_OV_LVL)
+	log_alarm(ALARM_VCAP_UV, MEAS_VCAP, VCAP_UV_LVL)
+	log_alarm(ALARM_VCAP_OV, MEAS_VCAP, VCAP_OV_LVL)
+	log_alarm(ALARM_VOUT_UV, MEAS_VOUT, VOUT_UV_LVL)
+	log_alarm(ALARM_VOUT_OV, MEAS_VOUT, VOUT_OV_LVL)
+	log_alarm(ALARM_IIN_OC, MEAS_IIN, IIN_OC_LVL)
+	log_alarm(ALARM_ICHG_UC, MEAS_ICHG, ICHG_UC_LVL)
+	log_alarm(ALARM_DTEMP_COLD, MEAS_DTEMP, DTEMP_COLD_LVL)
+	log_alarm(ALARM_DTEMP_HOT, MEAS_DTEMP, DTEMP_HOT_LVL)
+	log_alarm(ALARM_ESR_HI, MEAS_ESR, ESR_HI_LVL)
+	log_alarm(ALARM_CAP_LO, MEAS_CAP, CAP_LO_LVL)
 }
 
 // READ/WRITE UTILITY FUNCTIONS -------------------------------------
@@ -415,7 +397,7 @@ static int set_monitor_alert(struct i2c_client *client, int alert, int set)
 }
 
 /**
- * Schedules a Capacitance and ESR test, sets the test frequency to one test per hour
+ * Schedules a Capacitance and ESR test, sets the test frequency to one hour
 */
 static int start_capesr_test(struct i2c_client *client)
 {
@@ -433,6 +415,27 @@ static int start_capesr_test(struct i2c_client *client)
 
 // CONFIGURATION ------------------------------------------------------------------
 
+/*
+ * If initial measurements are active and a measurement has just completed
+ * warns the user about potential inaccurate values
+ * Eventually disables initial measurements.
+*/
+static void ltc3350_handle_initial_measurements(struct i2c_client *client, int monitor_value)
+{
+	struct device *dev = &client->dev;
+	struct ltc3350_data *devdata = dev_get_drvdata(dev);
+	if ((monitor_value & MON_ESR_DONE) && devdata->initial_meas) {
+		if (devdata->cap_esr_num < devdata->initial_meas) {
+			dev_warn(dev, "Initial capacitance and ESR measurements may be inaccurate. Measurement number %d.", devdata->cap_esr_num);
+		}
+		if (devdata->cap_esr_num == devdata->initial_meas) {
+			dev_warn(dev, "First %d capacitance and ESR tests done. Measurements will resume at rate specified in the device tree. MON_ESR_DONE alert will be turned off.", devdata->cap_esr_num);
+			set_monitor_alert(client, MON_ESR_DONE, 0);
+			ltc3350_write_num(client, CAP_ESR_PER, devdata->cap_esr_per);
+		}
+		devdata->cap_esr_num++;
+	}
+}
 
 
 /*
@@ -515,8 +518,8 @@ static int ltc3350_configure(struct i2c_client *client){
 		}
 	}
 	else {
-		dev_dbg(&client->dev, "No cap-esr-initial-measurements %d. Defaulting to 24.\n", ret);
-		data->initial_meas = 24;
+		dev_dbg(&client->dev, "No cap-esr-initial-measurements %d. Defaulting to 72.\n", ret);
+		data->initial_meas = 72;
 		ret = start_capesr_test(client);
 		if (ret)
 			return ret;
