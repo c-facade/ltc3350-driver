@@ -287,6 +287,7 @@ static void ltc3350_alert(struct i2c_client *client, enum i2c_alert_protocol, un
 */
 static void ltc3350_show_alarms(unsigned int alarm_value, unsigned int monitor_value, struct i2c_client *client){
 	struct device *dev = &client->dev;
+<<<<<<< HEAD
 	struct ltc3350_data *devdata = dev_get_drvdata(dev);
 	if (devdata->cap_esr_num <= devdata->initial_meas) {
 		ltc3350_handle_initial_measurements(client, monitor_value);
