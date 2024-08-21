@@ -1,0 +1,74 @@
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/lltc,ltc4151.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Linear Technology LTC3350 High Current Supercapacitor Backup Controller and System Monitor
+
+maintainers:
+  - Francesca Pinna <francecipinna@gmail.com>
+
+description:
+  Analog Devices LTC3350 High Current Supercapacitor Backup Controller and System Monitor.
+  https://www.analog.com/en/products/ltc3350.html?doc=LTC3350.pdf
+
+  The I2C SMBus port allows communication, and the SMBALERT pin allows the use of the SMBus alert response protocol.
+  In order to receive SMBus alerts, CONFIG_I2C_SMBUS and CONFIG_OF modules must be enabled. The parent I2C device node must declare the 'smbus_alert' interrupt on the appropriate interrupt line.
+
+  If a threshold is unset, the corresponding alert will be disabled.
+
+properties:
+  compatible:
+    const: ltc3350
+
+  reg:
+    maxItems: 1
+    description:
+      I2C address
+
+	capacitor-overvoltage-level:
+		description:
+			This is an alarm threshold for each individual capacitor in the stack. The value is expressed in 185 microvolts per LSB.
+  max-temperature:
+    description:
+      This is an alarm threshold for the die temperature. It is expressed as Temperature = 0.028°C per LSB – 251.4°C.
+	esr-high-level:
+		description:
+			This is an alarm threshold for the measured stack ESR. It is expressed as RSNSC/64 per LSB.
+	capacitance-low-level:
+		description:
+			This is an alarm threshold for measured stack capacitance. It is expressed as 336µF • RT/RTST per LSB for large value capacitor stacks.
+	cap-esr-measurement-period:
+		description:
+			This sets the period for repeated ESR and capacitance measurements. Each unit corresponds to 10 seconds. If not specified, periodic measurements will be disabled.
+	cap-esr-initial-measurements:
+		description:
+			The number of measurements after initial power-up. If not specified, there will be one test per hour for 72 hours. If zero, initial measurements will be disabled.
+    default:
+      72
+
+required:
+  - compatible
+  - reg
+
+examples:
+
+  - |
+    i2c {
+        interrupts-extended = <&gic GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
+          <&gpio1 10 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-names = "irq", "smbus_alert";
+
+        ltc3350: ltc3350@09 {
+          compatible = "ltc3350";
+          reg = <0x09>;
+
+          capacitor-overvoltage-level = <12534>; // 2300 mV
+          maximum-temperature = <12907>; // 110 C
+          esr-high-level = <192>; // 15 mR
+          capacitance-low-level = <249>; // 60 F
+          cap-esr-measurement-period = <12>;
+          cap-esr-initial-measurements = <10>;
+        };
+    };
+...
